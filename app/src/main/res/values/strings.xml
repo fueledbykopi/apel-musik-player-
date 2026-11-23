@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PulsePlayer</string>
+    <string name="permission_title">Akses Perpustakaan Musik</string>
+    <string name="permission_description">PulsePlayer memerlukan izin untuk membaca file audio di perangkat Anda agar dapat memindai lagu, album, dan artis secara lokal.</string>
+    <string name="permission_grant">Berikan Izin</string>
+    <string name="permission_settings">Buka Pengaturan Aplikasi</string>
+</resources>
