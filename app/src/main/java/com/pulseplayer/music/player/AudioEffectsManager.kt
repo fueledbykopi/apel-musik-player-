@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.update
 
 enum class EqualizerPreset(
     val label: String,
-    val bandLevelsMb: List<Short>,
+    val bandLevelsMb: List<Int>,
     val suggestedBassBoost: Int? = null
 ) {
     NORMAL("Normal", listOf(0, 0, 0, 0, 0), 0),
@@ -55,11 +55,11 @@ data class EqualizerState(
 ) {
     companion object {
         fun defaultFiveBands(): List<EqualizerBand> = listOf(
-            EqualizerBand(0, 60, 0),
-            EqualizerBand(1, 230, 0),
-            EqualizerBand(2, 910, 0),
-            EqualizerBand(3, 3600, 0),
-            EqualizerBand(4, 14000, 0)
+            EqualizerBand(0.toShort(), 60, 0.toShort()),
+            EqualizerBand(1.toShort(), 230, 0.toShort()),
+            EqualizerBand(2.toShort(), 910, 0.toShort()),
+            EqualizerBand(3.toShort(), 3600, 0.toShort()),
+            EqualizerBand(4.toShort(), 14000, 0.toShort())
         )
     }
 }
@@ -98,13 +98,17 @@ class AudioEffectsManager {
             val hwBandCount = eq.numberOfBands.toInt().coerceIn(1, 5)
             bandsList = (0 until hwBandCount).map { i ->
                 val bandIdx = i.toShort()
-                val desiredLevel = previous.bands.getOrNull(i)?.levelMillibels
-                    ?.coerceIn(minMb, maxMb) ?: 0
+                val desiredLevel: Short = previous.bands.getOrNull(i)
+                    ?.levelMillibels
+                    ?.coerceIn(minMb, maxMb)
+                    ?: 0.toShort()
                 runCatching { eq.setBandLevel(bandIdx, desiredLevel) }
+                val actualLevel: Short = runCatching { eq.getBandLevel(bandIdx) }
+                    .getOrDefault(desiredLevel)
                 EqualizerBand(
                     index = bandIdx,
                     centerFreqHz = eq.getCenterFreq(bandIdx) / 1000,
-                    levelMillibels = runCatching { eq.getBandLevel(bandIdx) }.getOrDefault(desiredLevel)
+                    levelMillibels = actualLevel
                 )
             }
         } catch (_: Throwable) {
@@ -148,7 +152,7 @@ class AudioEffectsManager {
     @Synchronized
     fun setBandLevel(bandIndex: Short, levelMillibels: Short) {
         val current = _state.value
-        val clamped = levelMillibels.coerceIn(current.minLevelMb, current.maxLevelMb)
+        val clamped: Short = levelMillibels.coerceIn(current.minLevelMb, current.maxLevelMb)
         runCatching {
             equalizer?.let { eq ->
                 if (!eq.enabled) eq.enabled = true
@@ -177,9 +181,12 @@ class AudioEffectsManager {
 
         val current = _state.value
         val updatedBands = current.bands.mapIndexed { i, band ->
-            val targetLevel = preset.bandLevelsMb
-                .getOrElse(i) { preset.bandLevelsMb.lastOrNull() ?: 0 }
-                .coerceIn(current.minLevelMb, current.maxLevelMb)
+            val rawLevel = preset.bandLevelsMb.getOrElse(i) {
+                preset.bandLevelsMb.lastOrNull() ?: 0
+            }
+            val targetLevel: Short = rawLevel
+                .coerceIn(current.minLevelMb.toInt(), current.maxLevelMb.toInt())
+                .toShort()
             runCatching {
                 equalizer?.let { eq ->
                     if (!eq.enabled) eq.enabled = true
